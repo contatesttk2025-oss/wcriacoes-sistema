@@ -244,7 +244,7 @@ tbody tr:last-child td{border-bottom:none;}
 <body>
 
 <!-- LOADING -->
-<div id="loadingScreen">
+<div id="loadingScreen" style="display:flex;">
   <div class="spinner"></div>
   <div style="font-size:13px;color:var(--text3);">Carregando...</div>
 </div>
@@ -630,24 +630,35 @@ function scheduleSave(){
 
 // ── SCREENS ──
 function showScreen(name){
-  document.getElementById('loadingScreen').style.display='none';
-  document.getElementById('authScreen').style.display='none';
-  document.getElementById('appScreen').style.display='none';
-  if(name==='loading') document.getElementById('loadingScreen').style.display='flex';
-  else if(name==='auth') document.getElementById('authScreen').style.display='flex';
-  else document.getElementById('appScreen').style.display='block';
+  ['loadingScreen','authScreen','appScreen'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  if(name==='loading'){
+    document.getElementById('loadingScreen').style.display='flex';
+  } else if(name==='auth'){
+    document.getElementById('authScreen').style.display='flex';
+  } else if(name==='app'){
+    document.getElementById('appScreen').style.display='block';
+  }
 }
 
 onAuthStateChanged(auth, async user => {
-  if(user){
-    uid=user.uid;
-    showScreen('loading');
-    await loadData();
-    document.getElementById('userName').textContent = user.displayName||user.email;
-    buildSelects();
-    renderDashboard();
-    showScreen('app');
-  } else {
+  try {
+    if(user){
+      uid=user.uid;
+      showScreen('loading');
+      await loadData();
+      document.getElementById('userName').textContent = user.displayName||user.email;
+      buildSelects();
+      renderDashboard();
+      showScreen('app');
+    } else {
+      uid=null; data={};
+      showScreen('auth');
+    }
+  } catch(e) {
+    console.error('Erro auth:', e);
     uid=null; data={};
     showScreen('auth');
   }
