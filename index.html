@@ -403,7 +403,13 @@ tbody tr:last-child td{border-bottom:none;}
         <div style="margin-bottom:12px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Custos desta venda</label>
-            <button class="btn sm" onclick="addCustoVenda()">+ Custo</button>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <select id="compraRapidaSel" style="height:32px;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:0 10px;font-size:12px;background:var(--bg3);color:var(--text);font-family:DM Sans,sans-serif;outline:none;max-width:220px;">
+                <option value="">📦 Adicionar da lista de compras...</option>
+              </select>
+              <button class="btn sm" onclick="addCustoDeCompra()">+ Add</button>
+              <button class="btn sm" onclick="addCustoVenda()">+ Manual</button>
+            </div>
           </div>
           <div class="custos-list" id="custosVenda"></div>
           <div class="custo-total"><span class="custo-total-label">Total de custos</span><span class="custo-total-val" id="custoTotalVal">R$ 0,00</span></div>
@@ -644,22 +650,22 @@ function showScreen(name){
 }
 
 onAuthStateChanged(auth, async user => {
-  try {
-    if(user){
-      uid=user.uid;
-      showScreen('loading');
+  if(user){
+    uid = user.uid;
+    showScreen('loading');
+    try {
       await loadData();
-      document.getElementById('userName').textContent = user.displayName||user.email;
+      document.getElementById('userName').textContent = user.displayName || user.email;
       buildSelects();
       renderDashboard();
       showScreen('app');
-    } else {
-      uid=null; data={};
-      showScreen('auth');
+    } catch(e) {
+      console.error('Erro ao carregar dados:', e);
+      showScreen('app');
     }
-  } catch(e) {
-    console.error('Erro auth:', e);
-    uid=null; data={};
+  } else {
+    uid = null;
+    data = {};
     showScreen('auth');
   }
 });
@@ -670,7 +676,7 @@ window.showTab = name => {
   document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',tabs[i]===name));
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  const fns={dashboard:renderDashboard,compras:renderCompras,vendas:renderVendas,contas:renderContas,relatorios:renderRelatorios,config:renderConfig};
+  const fns={dashboard:renderDashboard,compras:()=>{renderCompras();buildCompraRapidaSel();},vendas:()=>{renderVendas();buildCompraRapidaSel();},contas:renderContas,relatorios:renderRelatorios,config:renderConfig};
   fns[name]();
 };
 
@@ -682,6 +688,18 @@ function buildSelects(){
   const cats = data.catCompras||[];
   const selC = document.getElementById('compraCat');
   selC.innerHTML = cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+  buildCompraRapidaSel();
+}
+
+function buildCompraRapidaSel(){
+  const sel = document.getElementById('compraRapidaSel');
+  if(!sel) return;
+  const compras = data.compras||[];
+  sel.innerHTML = '<option value="">📦 Adicionar da lista de compras...</option>' +
+    compras.slice().reverse().map((c,ri)=>{
+      const i = compras.length-1-ri;
+      return `<option value="${i}">${c.desc} — ${fmt(c.val)} (${c.cat})</option>`;
+    }).join('');
 }
 
 // ── DASHBOARD ──
@@ -740,6 +758,7 @@ window.addCompra = () => {
   document.getElementById('compraObs').value='';
   document.getElementById('compraQtd').value='1';
   renderCompras();
+  buildCompraRapidaSel();
 };
 
 function renderCompras(){
@@ -767,6 +786,17 @@ let custosVendaList = [];
 
 window.addCustoVenda = () => {
   custosVendaList.push({desc:'',val:0});
+  renderCustosVenda();
+};
+
+window.addCustoDeCompra = () => {
+  const sel = document.getElementById('compraRapidaSel');
+  const idx = sel.value;
+  if(idx === '') { alert('Selecione uma compra da lista.'); return; }
+  const compra = (data.compras||[])[parseInt(idx)];
+  if(!compra) return;
+  custosVendaList.push({desc: compra.desc, val: compra.val});
+  sel.value = '';
   renderCustosVenda();
 };
 
