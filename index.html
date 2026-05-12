@@ -222,6 +222,7 @@ tbody tr:last-child td{border-bottom:none;}
     <button class="nav-btn" onclick="showTab('compras')">Compras</button>
     <button class="nav-btn" onclick="showTab('vendas')">Vendas</button>
     <button class="nav-btn" onclick="showTab('contas')">Contas a Pagar</button>
+    <button class="nav-btn" onclick="showTab('receber')">Contas a Receber</button>
     <button class="nav-btn" onclick="showTab('clientes')">Clientes</button>
     <button class="nav-btn" onclick="showTab('fornecedores')">Fornecedores</button>
     <button class="nav-btn" onclick="showTab('relatorios')">Relatórios</button>
@@ -355,6 +356,28 @@ tbody tr:last-child td{border-bottom:none;}
           <div class="lucro-item"><div class="lucro-label">Lucro</div><div class="lucro-val green" id="lucroValor">R$ 0,00</div></div>
         </div>
         <div class="form-row" style="margin-top:12px;">
+          <div class="form-group"><label>Forma de pagamento</label>
+            <select id="vendaFormaPgto">
+              <option value="Pix">Pix</option>
+              <option value="Dinheiro">Dinheiro</option>
+              <option value="Cartão de crédito">Cartão de crédito</option>
+              <option value="Cartão de débito">Cartão de débito</option>
+              <option value="Transferência">Transferência</option>
+              <option value="Misto">Misto</option>
+            </select>
+          </div>
+          <div class="form-group" style="max-width:200px;"><label>Status do pagamento</label>
+            <select id="vendaStatusPgto" onchange="toggleEntrada()">
+              <option value="integral">✅ Pago 100% integral</option>
+              <option value="entrada50">⚠️ 50% entrada / 50% na entrega</option>
+              <option value="personalizado">🔧 Valor personalizado</option>
+              <option value="pendente">❌ Ainda não pago</option>
+            </select>
+          </div>
+          <div class="form-group" style="max-width:150px;" id="entradaValorGroup" style="display:none;">
+            <label>Valor recebido (R$)</label>
+            <input type="number" id="vendaEntradaVal" placeholder="0,00" min="0" step="0.01" inputmode="decimal" oninput="calcLucro()"/>
+          </div>
           <div class="form-group"><label>Observação</label><input type="text" id="vendaObs" placeholder="Prazo, detalhes..."/></div>
           <button class="btn primary" onclick="addVenda()">Registrar venda</button>
         </div>
@@ -373,7 +396,7 @@ tbody tr:last-child td{border-bottom:none;}
           <button class="btn sm" onclick="exportVendasExcel()">📊 Exportar Excel</button>
         </div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Qtd</th><th>Receita</th><th>Custos</th><th>Lucro</th><th>Margem</th><th></th></tr></thead>
+          <thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Qtd</th><th>Receita</th><th>Recebido</th><th>A receber</th><th>Lucro</th><th>Pagamento</th><th></th></tr></thead>
           <tbody id="vendasTable"></tbody>
         </table></div>
       </div>
@@ -405,6 +428,20 @@ tbody tr:last-child td{border-bottom:none;}
       </div>
       <div class="card"><div class="card-title">Pendentes</div><div id="contasPendentes"></div></div>
       <div class="card"><div class="card-title">Pagas</div><div id="contasPagas"></div></div>
+    </div>
+
+    <!-- CONTAS A RECEBER -->
+    <div id="tab-receber" class="section">
+      <div class="metric-grid" id="receberMetrics"></div>
+      <div class="card">
+        <div class="card-title">Valores a receber por cliente</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data venda</th><th>Cliente</th><th>Produto</th><th>Total venda</th><th>Recebido</th><th>A receber</th><th>Forma pgto</th><th>Ação</th></tr></thead>
+            <tbody id="receberTable"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- CLIENTES -->
@@ -599,7 +636,7 @@ window.changeMonth=(dir)=>{ curMonth+=dir; if(curMonth>11){curMonth=0;curYear++;
 function updateMonthLabels(){ const label=MONTHS[curMonth]+' de '+curYear; ['dashMonth','finMes','relMes'].forEach(id=>{ const el=document.getElementById(id); if(el)el.textContent=label; }); const el2=document.getElementById('dashFluxoMes'); if(el2)el2.textContent=label; const el3=document.getElementById('relDreMes'); if(el3)el3.textContent=label; }
 
 // ── NAV ──
-window.showTab=(name)=>{ const tabs=['dashboard','financeiro','compras','vendas','contas','clientes','fornecedores','relatorios','config']; document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',tabs[i]===name)); document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.getElementById('tab-'+name).classList.add('active'); const fns={dashboard:renderDashboard,financeiro:renderFinanceiro,compras:renderCompras,vendas:()=>{renderVendas();buildCompraRapidaSel();},contas:renderContas,clientes:renderClientes,fornecedores:renderFornecedores,relatorios:renderRelatorios,config:renderConfig}; if(fns[name])fns[name](); };
+window.showTab=(name)=>{ const tabs=['dashboard','financeiro','compras','vendas','contas','receber','clientes','fornecedores','relatorios','config']; document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',tabs[i]===name)); document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.getElementById('tab-'+name).classList.add('active'); const fns={dashboard:renderDashboard,financeiro:renderFinanceiro,compras:renderCompras,vendas:()=>{renderVendas();buildCompraRapidaSel();},contas:renderContas,receber:renderReceber,clientes:renderClientes,fornecedores:renderFornecedores,relatorios:renderRelatorios,config:renderConfig}; if(fns[name])fns[name](); };
 
 // ── BUILD SELECTS ──
 function buildAll(){ buildProdutoSel(); buildCatCompraSel(); buildFornecedorSel(); buildClienteSel(); buildCompraRapidaSel(); updateMonthLabels(); }
@@ -730,7 +767,29 @@ function renderCustosVenda(){ document.getElementById('custosVenda').innerHTML=c
 window.updateCusto=(i,k,v)=>{ custosVendaList[i][k]=v;calcLucro(); };
 window.removeCusto=i=>{ custosVendaList.splice(i,1);renderCustosVenda(); };
 window.calcLucro=()=>{ const qtd=parseInt(document.getElementById('vendaQtd').value)||1,receita=(parseFloat(document.getElementById('vendaValor').value)||0)*qtd,custos=custosVendaList.reduce((s,c)=>s+(c.val||0),0)*qtd,lucro=receita-custos; document.getElementById('custoTotalVal').textContent=fmt(custos);document.getElementById('lucroReceita').textContent=fmt(receita);document.getElementById('lucroCustos').textContent=fmt(custos);document.getElementById('lucroValor').textContent=fmt(lucro);document.getElementById('lucroValor').style.color=lucro>=0?'var(--green)':'var(--red)'; };
-window.addVenda=()=>{ const cliIdx=document.getElementById('vendaClienteSel').value,produto=document.getElementById('vendaProduto').value,qtd=parseInt(document.getElementById('vendaQtd').value)||1,valorUnit=parseFloat(document.getElementById('vendaValor').value)||0,obs=document.getElementById('vendaObs').value.trim(); if(!valorUnit){alert('Informe o valor de venda.');return;} const cli=cliIdx!==''?(data.clientes||[])[parseInt(cliIdx)]:null; const cliente=cli?cli.nome:'Avulso'; const receita=valorUnit*qtd,custos=custosVendaList.reduce((s,c)=>s+(c.val||0),0)*qtd,lucro=receita-custos,margem=receita>0?Math.round((lucro/receita)*100):0; if(!data.vendas)data.vendas=[]; data.vendas.push({id:Date.now(),cliente,produto,qtd,receita,custos,lucro,margem,obs,data:today(),custosDetalhes:[...custosVendaList]}); scheduleSave();custosVendaList=[];document.getElementById('vendaValor').value='';document.getElementById('vendaObs').value='';document.getElementById('vendaQtd').value='1';renderCustosVenda();renderVendas();calcLucro(); };
+window.toggleEntrada=()=>{
+  const status=document.getElementById('vendaStatusPgto').value;
+  const g=document.getElementById('entradaValorGroup');
+  if(status==='personalizado'){g.style.display='flex';}
+  else{g.style.display='none';document.getElementById('vendaEntradaVal').value='';}
+};
+
+window.addVenda=()=>{
+  const cliIdx=document.getElementById('vendaClienteSel').value,produto=document.getElementById('vendaProduto').value,qtd=parseInt(document.getElementById('vendaQtd').value)||1,valorUnit=parseFloat(document.getElementById('vendaValor').value)||0,obs=document.getElementById('vendaObs').value.trim();
+  const formaPgto=document.getElementById('vendaFormaPgto').value;
+  const statusPgto=document.getElementById('vendaStatusPgto').value;
+  if(!valorUnit){alert('Informe o valor de venda.');return;}
+  const cli=cliIdx!==''?(data.clientes||[])[parseInt(cliIdx)]:null;
+  const cliente=cli?cli.nome:'Avulso';
+  const receita=valorUnit*qtd,custos=custosVendaList.reduce((s,c)=>s+(c.val||0),0)*qtd,lucro=receita-custos,margem=receita>0?Math.round((lucro/receita)*100):0;
+  let recebido=receita,aReceber=0;
+  if(statusPgto==='entrada50'){recebido=receita*0.5;aReceber=receita*0.5;}
+  else if(statusPgto==='pendente'){recebido=0;aReceber=receita;}
+  else if(statusPgto==='personalizado'){recebido=parseFloat(document.getElementById('vendaEntradaVal').value)||0;aReceber=Math.max(0,receita-recebido);}
+  if(!data.vendas)data.vendas=[];
+  data.vendas.push({id:Date.now(),cliente,produto,qtd,receita,custos,lucro,margem,obs,data:today(),custosDetalhes:[...custosVendaList],formaPgto,statusPgto,recebido,aReceber,pgtoFinalizado:aReceber===0});
+  scheduleSave();custosVendaList=[];document.getElementById('vendaValor').value='';document.getElementById('vendaObs').value='';document.getElementById('vendaQtd').value='1';document.getElementById('vendaEntradaVal').value='';document.getElementById('vendaStatusPgto').value='integral';document.getElementById('entradaValorGroup').style.display='none';renderCustosVenda();renderVendas();calcLucro();
+};
 window.filtrarVendas=()=>{ const cliente=document.getElementById('filtroCliente').value.toLowerCase().trim(),produto=document.getElementById('filtroProduto').value.toLowerCase().trim(),dataIni=document.getElementById('filtroDataInicio').value,dataFim=document.getElementById('filtroDataFim').value; const vendas=(data.vendas||[]).map((v,i)=>({...v,_i:i})).filter(v=>{ return(!cliente||v.cliente.toLowerCase().includes(cliente))&&(!produto||v.produto.toLowerCase().includes(produto))&&(!dataIni||v.data>=dataIni)&&(!dataFim||v.data<=dataFim); }); const temFiltro=cliente||produto||dataIni||dataFim; document.getElementById('filtroResultado').textContent=temFiltro?`${vendas.length} resultado(s)`:''; renderVendasLista(vendas); };
 window.limparFiltros=()=>{ ['filtroCliente','filtroProduto','filtroDataInicio','filtroDataFim'].forEach(id=>document.getElementById(id).value=''); document.getElementById('filtroResultado').textContent='';renderVendas(); };
 function renderVendas(){ renderVendasLista((data.vendas||[]).map((v,i)=>({...v,_i:i}))); }
@@ -845,6 +904,50 @@ window.exportRelatorioExcel=()=>{
 
 window.exportFinanceiroPDF=()=>{ window.print(); };
 window.exportRelatorioPDF=()=>{ window.print(); };
+
+// ── CONTAS A RECEBER ──
+function renderReceber(){
+  const vendas=(data.vendas||[]).filter(v=>(v.aReceber||0)>0&&!v.pgtoFinalizado);
+  const totalAReceber=vendas.reduce((s,v)=>s+(v.aReceber||0),0);
+  const totalClientes=[...new Set(vendas.map(v=>v.cliente))].length;
+
+  document.getElementById('receberMetrics').innerHTML=`
+    <div class="metric" style="--accent:var(--gold)"><div class="metric-label">Total a receber</div><div class="metric-value gold">${fmt(totalAReceber)}</div></div>
+    <div class="metric" style="--accent:var(--red)"><div class="metric-label">Vendas pendentes</div><div class="metric-value red">${vendas.length}</div></div>
+    <div class="metric" style="--accent:var(--blue)"><div class="metric-label">Clientes com saldo</div><div class="metric-value" style="color:var(--blue);">${totalClientes}</div></div>
+    <div class="metric" style="--accent:var(--green)"><div class="metric-label">Ticket médio pendente</div><div class="metric-value green">${vendas.length>0?fmt(totalAReceber/vendas.length):fmt(0)}</div></div>`;
+
+  const el=document.getElementById('receberTable');
+  if(!vendas.length){el.innerHTML='<tr><td colspan="8"><div class="empty">✅ Nenhum valor pendente a receber!</div></td></tr>';return;}
+
+  const allVendas=(data.vendas||[]);
+  el.innerHTML=vendas.map((v)=>{
+    const i=allVendas.findIndex(x=>x.id===v.id);
+    const statusLabel=v.statusPgto==='entrada50'?'50% entrada':v.statusPgto==='pendente'?'Não pago':'Parcial';
+    return`<tr>
+      <td>${fmtDate(v.data)}</td>
+      <td style="font-weight:500;">${v.cliente}</td>
+      <td>${v.produto}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--gold);">${fmt(v.receita)}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--green);">${fmt(v.recebido||0)}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--red);font-weight:600;">${fmt(v.aReceber||0)}</td>
+      <td><span class="badge gold">${v.formaPgto||'—'}</span></td>
+      <td><button class="btn success sm" onclick="marcarRecebido(${i})" title="Marcar como recebido">✓ Recebido</button></td>
+    </tr>`;
+  }).join('');
+}
+
+window.marcarRecebido=i=>{
+  if(!data.vendas[i])return;
+  const v=data.vendas[i];
+  v.recebido=v.receita;
+  v.aReceber=0;
+  v.pgtoFinalizado=true;
+  v.dataRecebimento=today();
+  scheduleSave();
+  renderReceber();
+  renderVendas();
+};
 
 // ── CONFIG ──
 function renderConfig(){ const prods=data.produtos||[],fixed=['Camiseta bordada','Polo bordada','Boné bordado','Camiseta DTF','Uniforme','Kit personalizado']; document.getElementById('produtosList').innerHTML=prods.map((p,i)=>`<span class="tag gold">${p}${!fixed.includes(p)?` <span class="remove" onclick="removeProduto(${i})">×</span>`:''}</span>`).join(''); const cats=data.catCompras||[],fixedC=['Camiseta','DTF / Estampa','Bordado','Linha','Boné','Polo','Embalagem','Frete','Outro']; document.getElementById('catCompraList').innerHTML=cats.map((c,i)=>`<span class="tag gold">${c}${!fixedC.includes(c)?` <span class="remove" onclick="removeCatCompra(${i})">×</span>`:''}</span>`).join(''); }
